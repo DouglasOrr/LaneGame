@@ -12,6 +12,7 @@ import java.util.TimerTask;
 import dorr.lanegame.core.Game;
 
 public class CustomSurfaceView extends GLSurfaceView {
+    public final dorr.lanegame.graphics.Renderer renderer;
     public CustomSurfaceView(Context context) {
         super(context);
     }
@@ -20,8 +21,11 @@ public class CustomSurfaceView extends GLSurfaceView {
     }
     {
         setEGLContextClientVersion(2);
-        setRenderer(new Examples.Basic());
+        renderer = new dorr.lanegame.graphics.Renderer();
+        setRenderer(renderer);
         setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+//        setRenderer(new Examples.Basic());
+//        setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
 //        setRenderer(new Examples.Particles(256));  // 131072
 //        setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
     }

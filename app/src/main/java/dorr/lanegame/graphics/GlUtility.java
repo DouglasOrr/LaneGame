@@ -21,7 +21,7 @@ class GlUtility {
         }
     }
 
-    static void checkError(String what) {
+    private static void checkError(String what) {
         int error = GLES20.glGetError();
         if (error != GLES20.GL_NO_ERROR) {
             throw new GlException(what, error, "");
@@ -55,6 +55,25 @@ class GlUtility {
             throw new GlException("glLinkProgram", null, GLES20.glGetProgramInfoLog(program));
         }
         return program;
+    }
+
+    private static int checkLocation(int location, String what, String name) {
+        if (location < 0) {
+            throw new GlException(String.format("%s(%s) failed", what, name), location, "");
+        }
+        return location;
+    }
+
+    static int getAttribLocation(int program, String name) {
+        return checkLocation(
+                GLES20.glGetAttribLocation(program, name),
+                "glGetAttribLocation", name);
+    }
+
+    static int getUniformLocation(int program, String name) {
+        return checkLocation(
+                GLES20.glGetUniformLocation(program, name),
+                "getUniformLocation", name);
     }
 
     static class FpsLogger {

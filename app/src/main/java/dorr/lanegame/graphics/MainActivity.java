@@ -23,6 +23,7 @@ public class MainActivity extends Activity {
         Game.GameSpec spec = Game.EXAMPLE;
         mSimulation = new Simulation(0.01f, spec,
                 new Agent.RandomAgent(spec), new Agent.RandomAgent(spec));
+        ((CustomSurfaceView) findViewById(R.id.main_surface_view)).renderer.setup(mSimulation);
     }
 
     @Override

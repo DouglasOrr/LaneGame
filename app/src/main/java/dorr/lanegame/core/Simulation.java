@@ -22,6 +22,10 @@ public class Simulation extends TimerTask {
         start();
     }
 
+    public Game.GameSpec spec() {
+        return mGame.spec;
+    }
+
     /**
      * Read the current state into scratch & return it.
      * <p>

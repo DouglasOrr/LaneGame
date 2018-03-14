@@ -48,18 +48,18 @@ public class Game {
     );
 
     public static class UnitSpec {
-        @NotNull final String name;
+        @NotNull public final String name;
         // Basic stats
-        final int height;
-        final int speed;
-        final int health;
-        final int attack;
-        final int minAttack;
-        final int cost;
+        public final int height;
+        public final int speed;
+        public final int health;
+        public final int attack;
+        public final int minAttack;
+        public final int cost;
         // Special powers
-        final boolean merge;
-        final int range;
-        final boolean swapLanes;
+        public final boolean merge;
+        public final int range;
+        public final boolean swapLanes;
         UnitSpec(@NotNull String name, int height, int speed, int health,
                  int attack, int minAttack, int cost,
                  boolean merge, int range, boolean swapLanes) {
@@ -76,9 +76,9 @@ public class Game {
         }
     }
     public static class ObjectiveSpec {
-        final int lane;
-        final int position;
-        final int income;
+        public final int lane;
+        public final int position;
+        public final int income;
         ObjectiveSpec(int lane, int position, int income) {
             this.lane = lane;
             this.position = position;
@@ -86,12 +86,12 @@ public class Game {
         }
     }
     public static class GameSpec {
-        final int lanes;
-        final int length;
-        @NotNull final List<ObjectiveSpec> objectives;
-        final int startingBalance;
-        final int income;
-        @NotNull final List<UnitSpec> units;
+        public final int lanes;
+        public final int length;
+        @NotNull public final List<ObjectiveSpec> objectives;
+        public final int startingBalance;
+        public final int income;
+        @NotNull public final List<UnitSpec> units;
         GameSpec(int lanes, int length, @NotNull List<ObjectiveSpec> objectives,
                  int startingBalance, int income, @NotNull List<UnitSpec> units) {
             this.lanes = lanes;
