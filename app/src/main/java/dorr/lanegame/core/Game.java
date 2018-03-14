@@ -1,5 +1,7 @@
 package dorr.lanegame.core;
 
+import android.support.annotation.NonNull;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -12,6 +14,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 
 import dorr.lanegame.BuildConfig;
 
@@ -44,7 +47,7 @@ public class Game {
             )
     );
 
-    static class UnitSpec {
+    public static class UnitSpec {
         @NotNull final String name;
         // Basic stats
         final int height;
@@ -72,7 +75,7 @@ public class Game {
             this.swapLanes = swapLanes;
         }
     }
-    static class ObjectiveSpec {
+    public static class ObjectiveSpec {
         final int lane;
         final int position;
         final int income;
@@ -97,6 +100,15 @@ public class Game {
             this.startingBalance = startingBalance;
             this.income = income;
             this.units = Collections.unmodifiableList(units);
+        }
+    }
+
+    public static class Placement {
+        @NotNull final String unit;
+        final int lane;
+        public Placement(@NotNull String unit, int lane) {
+            this.unit = unit;
+            this.lane = lane;
         }
     }
 
@@ -165,12 +177,13 @@ public class Game {
             MOVEMENT,
             COMBAT
         }
-        @NotNull final UnitSpec spec;
+        // NOTE: updates here must be reflected in Game.copyLane
+        @NotNull UnitSpec spec;
         @NotNull Owner owner;
         int position;
         int health;
-        State state;
-        Unit(@NotNull UnitSpec spec, @NotNull Owner owner, int position, int health, State state) {
+        @NotNull State state;
+        Unit(@NotNull UnitSpec spec, @NotNull Owner owner, int position, int health, @NonNull State state) {
             this.spec = spec;
             this.owner = owner;
             this.position = position;
@@ -179,13 +192,15 @@ public class Game {
         }
     }
     static class Player {
+        // NOTE: updates here must be reflected in Game.copyFrom
         int balance;
         Player(int balance) {
             this.balance = balance;
         }
     }
     static class Objective {
-        @NotNull final ObjectiveSpec spec;
+        // NOTE: updates here must be reflected in Game.copyLane
+        @NotNull ObjectiveSpec spec;
         @Nullable Owner owner;
         int position;
         Objective(@NotNull ObjectiveSpec spec, @Nullable Owner owner, int position) {
@@ -195,6 +210,7 @@ public class Game {
         }
     }
     static class Lane {
+        // NOTE: updates here must be reflected in Game.copyLane
         @NotNull final List<Objective> objectives;
         @NotNull final List<Unit> units;
         Lane(@NotNull List<Objective> objectives, @NotNull List<Unit> units) {
@@ -250,8 +266,15 @@ public class Game {
         mNameToUnitSpec = Collections.unmodifiableMap(nameToUnitSpec);
     }
 
+    // Basic utilities
+
     Player player(Owner owner) {
         return mPlayers.get(owner.ordinal());
+    }
+
+    private static boolean isOverlapping(Unit a, Unit b) {
+        return (a.position < b.position + b.spec.height
+                && b.position < a.position + a.spec.height);
     }
 
     private void checkInvariants() {
@@ -269,50 +292,57 @@ public class Game {
         }
     }
 
-    private void place(Owner owner, List<String> placements) {
-        if (placements.size() != this.lanes.size()) {
-            throw new IllegalArgumentException(
-                    "Incorrect number of placements - should match number of lanes");
-        }
-        for (int i = 0; i < this.lanes.size(); ++i) {
-            String placement = placements.get(i);
-            if (placement == null) continue;
+    // API subfunctions
 
-            UnitSpec spec = mNameToUnitSpec.get(placement);
-            if (player(owner).balance < spec.cost) continue;
-
-            Lane lane = this.lanes.get(i);
-            if (owner == Owner.FRIENDLY) {
-                Unit unit = new Unit(spec, owner, 0,
-                        spec.health, Unit.State.MOVEMENT);
-                if (lane.units.isEmpty() || !isOverlapping(lane.units.get(0), unit)) {
-                    lane.units.add(0, unit);
-                    player(owner).balance -= spec.cost;
+    private void place(Owner owner, Placement placement) {
+        if (placement != null) {
+            if (placement.lane < 0 || this.lanes.size() <= placement.lane) {
+                throw new IllegalArgumentException(
+                        "Bad lane assignment - no lane: " + placement.lane);
+            }
+            Lane lane = this.lanes.get(placement.lane);
+            UnitSpec spec = mNameToUnitSpec.get(placement.unit);
+            if (spec.cost <= player(owner).balance) {
+                int position, index;
+                Unit encumbent;
+                if (owner == Owner.FRIENDLY) {
+                    position = 0;
+                    index = 0;
+                    encumbent = getOrNull(lane.units, 0);
+                } else {
+                    position = this.spec.length - 1 - spec.height;
+                    index = lane.units.size();
+                    encumbent = getOrNull(lane.units, lane.units.size() - 1);
                 }
-            } else {
-                Unit unit = new Unit(spec, owner, this.spec.length - 1 - spec.height,
-                        spec.health, Unit.State.MOVEMENT);
-                if (lane.units.isEmpty() || !isOverlapping(lane.units.get(lane.units.size() - 1), unit)) {
-                    lane.units.add(unit);
+                Unit unit = new Unit(spec, owner, position, spec.health, Unit.State.MOVEMENT);
+                if (encumbent == null || !isOverlapping(encumbent, unit)) {
+                    lane.units.add(index, unit);
                     player(owner).balance -= spec.cost;
                 }
             }
         }
     }
 
-    private void addIncome(float dt, Owner owner) {
-        int income = (int)(dt * this.spec.income);
+    private void addIncome(float dt) {
+        int baseIncome = (int)(dt * this.spec.income);
+        player(Owner.FRIENDLY).balance += baseIncome;
+        player(Owner.ENEMY).balance += baseIncome;
         for (Lane lane : this.lanes) {
             for (Objective objective : lane.objectives) {
-                if (objective.owner == owner) {
-                    income += (int)(dt * objective.spec.income);
+                for (Unit unit : lane.units) {
+                    int d = objective.spec.position - unit.position;
+                    if (0 <= d && d < unit.spec.height) {
+                        objective.owner = unit.owner; // captured!
+                    }
+                }
+                if (objective.owner != null) {
+                    player(objective.owner).balance += (int) (dt * objective.spec.income);
                 }
             }
         }
-        player(owner).balance += income;
     }
 
-    private Unit getCombat(Lane lane, Unit unit) {
+    private static Unit getCombat(Lane lane, Unit unit) {
         // Find the closest enemy unit with a linear scan
         Unit closest = null;
         int closestDistance = Integer.MAX_VALUE;
@@ -368,7 +398,7 @@ public class Game {
         }
     }
 
-    private boolean isFlanking(Lane lane, int unitIndex) {
+    private static boolean isFlanking(Lane lane, int unitIndex) {
         Unit unit = lane.units.get(unitIndex);
         if (unit.spec.swapLanes) {
             Unit prev = getOrNull(lane.units, unitIndex - unit.owner.direction());
@@ -377,12 +407,7 @@ public class Game {
         return false;
     }
 
-    private boolean isOverlapping(Unit a, Unit b) {
-        return (a.position < b.position + b.spec.height
-                && b.position < a.position + a.spec.height);
-    }
-
-    private Integer getFlank(Unit unit, Lane adjacent) {
+    private static Integer getFlank(Unit unit, Lane adjacent) {
         if (adjacent == null) {
             return null;
         }
@@ -398,7 +423,7 @@ public class Game {
             int d = unit.owner.direction();
             if (other.position * d < unit.position * d
                     && (next == null || unit.position * d < next.position * d)) {
-                return other.owner != unit.owner ? iterator.index() + d : null;
+                return other.owner != unit.owner ? iterator.index() + Math.max(d, 0) : null;
             }
         }
         return null;
@@ -434,14 +459,14 @@ public class Game {
 
     private void doRefund(UnitIterator iterator) {
         Unit unit = iterator.current();
-        if (unit.position < 0 || spec.length < unit.position + unit.spec.height) {
+        if (unit.position < 0 || this.spec.length < unit.position + unit.spec.height) {
             int refund = (unit.spec.cost * unit.health) / unit.spec.health;
             player(unit.owner).balance += refund;
             iterator.remove();
         }
     }
 
-    private Unit doCollision(UnitIterator iterator, int direction, Lane lane) {
+    private static Unit doCollision(UnitIterator iterator, int direction, Lane lane) {
         Unit unit = iterator.current();
         Unit next = getOrNull(lane.units, iterator.index() + direction);
         if (next != null) {
@@ -490,27 +515,44 @@ public class Game {
         }
     }
 
-    private void captureObjectives() {
-        for (Lane lane : this.lanes) {
-            // This is a slow implementation (O(N^2), where it is doable in O(N))
-            // - but it's not a hotspot
-            for (Objective objective : lane.objectives) {
-                for (Unit unit : lane.units) {
-                    int d = objective.spec.position - unit.position;
-                    if (0 <= d && d < unit.spec.height) {
-                        // Captured!
-                        objective.owner = unit.owner;
-                    }
-                }
-            }
+    private static void copyLane(Lane dest, Lane src) {
+        check(dest.objectives.size() == src.objectives.size(),
+                "Same spec => same number of objectives");
+        for (int i = 0; i < dest.objectives.size(); ++i) {
+            Objective destObjective = dest.objectives.get(i);
+            Objective srcObjective = src.objectives.get(i);
+            destObjective.spec = srcObjective.spec;
+            destObjective.position = srcObjective.position;
+            destObjective.owner = srcObjective.owner;
+        }
+        // Remove extra units
+        while (src.units.size() < dest.units.size()) {
+            dest.units.remove(dest.units.size() - 1);
+        }
+        // Update existing units
+        for (int i = 0; i < src.units.size(); ++i) {
+            Unit srcUnit = src.units.get(i);
+            Unit destUnit = dest.units.get(i);
+            srcUnit.spec = destUnit.spec;
+            srcUnit.owner = destUnit.owner;
+            srcUnit.position = destUnit.position;
+            srcUnit.health = destUnit.health;
+            srcUnit.state = destUnit.state;
+        }
+        // Add new units
+        for (int i = src.units.size(); i < dest.units.size(); ++i) {
+            Unit unit = dest.units.get(i);
+            dest.units.add(new Unit(unit.spec, unit.owner, unit.position, unit.health, unit.state));
         }
     }
+
+    // Public API
 
     /**
      * Invert the simulation, so that the enemy becomes the friendly & the top of the map becomes
      * the bottom.
      */
-    void invert() {
+    public void invert() {
         Collections.reverse(this.lanes);
         for (Lane lane : this.lanes) {
             Collections.reverse(lane.objectives);
@@ -529,6 +571,27 @@ public class Game {
     }
 
     /**
+     * Deep copy the state from "game" into the current game.
+     *
+     * Both games must have been created from the same spec.
+     */
+    public void copyFrom(Game game) {
+        if (this.spec != game.spec) {
+            throw new IllegalArgumentException(
+                    "Cannot copyFrom a game which has a different spec");
+        }
+        // As the spec is the same, we don't need to sync {.spec, .mNameToUnitSpec}
+        this.mPlayers.get(0).balance = game.mPlayers.get(0).balance;
+        this.mPlayers.get(1).balance = game.mPlayers.get(1).balance;
+        check(this.lanes.size() == game.lanes.size(),
+                "Same spec => same number of lanes");
+        for (int i = 0; i < this.lanes.size(); ++i) {
+            copyLane(this.lanes.get(i), game.lanes.get(i));
+        }
+        checkInvariants();
+    }
+
+    /**
      * Advance the simulation by a single timestep.
      *
      * The simulation is not guaranteed to be fair. If fairness is required, we recommend inverting
@@ -538,22 +601,11 @@ public class Game {
      * game.tick(dt, friendly, enemy);
      * game.invert();
      * }</pre>
-     *
-     * @param dt time interval
-     * @param friendlyPlacements list of unit spec names to place on each column (friendly)
-     * @param enemyPlacements list of unit spec names to place on each column (enemy)
      */
-    public void tick(float dt, List<String> friendlyPlacements, List<String> enemyPlacements) {
-        // Phase 1: placement
-        place(Owner.FRIENDLY, friendlyPlacements);
-        place(Owner.ENEMY, enemyPlacements);
-
-        // Phase 2: income
-        captureObjectives();
-        addIncome(dt, Owner.FRIENDLY);
-        addIncome(dt, Owner.ENEMY);
-
-        // Phase 3: combat/control/movement
+    public void tick(float dt, @Nullable Placement friendly, @Nullable Placement enemy) {
+        place(Owner.FRIENDLY, friendly);
+        place(Owner.ENEMY, enemy);
+        addIncome(dt);
         doCombat(dt);
         doSwapLanes(Owner.FRIENDLY);
         doSwapLanes(Owner.ENEMY);

@@ -51,7 +51,7 @@ public class GameTest {
         assertThat(game.lanes.get(0).units, empty());
 
         // Tick without placement - no change
-        game.tick(0.0f, noPlacement(), noPlacement());
+        game.tick(0.0f, null, null);
         assertThat(game.player(Game.Owner.FRIENDLY).balance, is(TEST_SPEC.startingBalance));
         assertThat(game.player(Game.Owner.ENEMY).balance, is(TEST_SPEC.startingBalance));
         assertThat(game.lanes.get(0).units, empty());
@@ -63,7 +63,7 @@ public class GameTest {
         int balance = game.player(Game.Owner.FRIENDLY).balance;
         assertThat(game.player(Game.Owner.ENEMY).balance, is(balance));
 
-        game.tick(0.1f, noPlacement(), noPlacement());
+        game.tick(0.1f, null, null);
         balance += 20;
         assertThat(game.player(Game.Owner.FRIENDLY).balance, is(balance));
         assertThat(game.player(Game.Owner.ENEMY).balance, is(balance));
@@ -72,7 +72,7 @@ public class GameTest {
         game.lanes.get(0).objectives.get(0).owner = Game.Owner.FRIENDLY;
         game.lanes.get(0).objectives.get(1).owner = Game.Owner.FRIENDLY;
         game.lanes.get(1).objectives.get(0).owner = Game.Owner.ENEMY;
-        game.tick(0.1f, noPlacement(), noPlacement());
+        game.tick(0.1f, null, null);
         assertThat(game.player(Game.Owner.FRIENDLY).balance, is(balance + 60));
         assertThat(game.player(Game.Owner.ENEMY).balance, is(balance + 40));
     }
@@ -83,22 +83,22 @@ public class GameTest {
         assertThat(game.lanes.get(0).units, empty());
         assertThat(game.player(Game.Owner.FRIENDLY).balance, is(2000));
 
-        game.tick(0.0f, asList("sword", null, null), noPlacement());
+        game.tick(0.0f, new Game.Placement("sword", 0), null);
         assertThat(game.lanes.get(0).units, hasSize(1));
         assertThat(game.player(Game.Owner.FRIENDLY).balance, is(1000));
 
         // horse is too expensive
-        game.tick(0.0f, asList(null, "horse", null), noPlacement());
+        game.tick(0.0f, new Game.Placement("horse", 1), null);
         assertThat(game.lanes.get(1).units, empty());
         assertThat(game.player(Game.Owner.FRIENDLY).balance, is(1000));
 
         // cannot stack units (at placement time)
-        game.tick(0.0f, asList("sword", null, null), noPlacement());
+        game.tick(0.0f, new Game.Placement("sword", 0), null);
         assertThat(game.lanes.get(0).units, hasSize(1));
         assertThat(game.player(Game.Owner.FRIENDLY).balance, is(1000));
 
         // enemy can place (at the other end of the lane
-        game.tick(0.0f, noPlacement(), asList("sword", null, null));
+        game.tick(0.0f, null, new Game.Placement("sword", 0));
         assertThat(game.lanes.get(0).units, hasSize(2));
         assertThat(game.player(Game.Owner.ENEMY).balance, is(1000));
     }
@@ -106,7 +106,7 @@ public class GameTest {
     @Test
     public void invert() {
         Game game = new Game(TEST_SPEC);
-        game.tick(0.0f, asList("sword", null, null), asList(null, null, "horse"));
+        game.tick(0.0f, new Game.Placement("sword", 0), new Game.Placement("horse", 2));
         assertThat(game.player(Game.Owner.FRIENDLY).balance, is(1000));
         assertThat(game.player(Game.Owner.ENEMY).balance, is(600));
         Game.Unit sword = game.lanes.get(0).units.get(0);
@@ -160,16 +160,16 @@ public class GameTest {
     @Test
     public void demo() {
         Game game = new Game(TEST_SPEC);
-        game.tick(0.5f, asList(null, "sword", null), asList(null, "sword", null));
+        game.tick(0.5f, new Game.Placement("sword", 1), new Game.Placement("sword", 1));
         for (int i = 0; i < 2; ++i) {
             System.out.println(render(game));
-            game.tick(0.5f, noPlacement(), noPlacement());
+            game.tick(0.5f, null, null);
         }
         System.out.println(render(game));
-        game.tick(0.5f, asList(null, "sword", null), asList(null, "sword", null));
+        game.tick(0.5f, new Game.Placement("sword", 1), new Game.Placement("sword", 1));
         for (int i = 0; i < 10; ++i) {
             System.out.println(render(game));
-            game.tick(0.5f, noPlacement(), noPlacement());
+            game.tick(0.5f, null, null);
         }
         for (Game.Unit unit : game.lanes.get(1).units) {
             System.out.println(unit.position + " " + unit.health);

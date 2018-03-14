@@ -2,38 +2,13 @@ package dorr.lanegame.graphics;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.util.Log;
-
-import java.util.Arrays;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import dorr.lanegame.R;
+import dorr.lanegame.core.Agent;
 import dorr.lanegame.core.Game;
+import dorr.lanegame.core.Simulation;
 
 public class MainActivity extends Activity {
-    private static class Simulation extends TimerTask {
-        private final Game mGame;
-        private final Timer mTimer;
-        private final float mTimestep;
-        Simulation(Game.GameSpec spec, float dt) {
-            mGame = new Game(spec);
-            mTimestep = dt;
-            mTimer = new Timer("simulation", true);
-            mTimer.schedule(this, 0, (int)(dt * 1000));
-        }
-        void stop() {
-            mTimer.cancel();
-        }
-        @Override
-        public void run() {
-            // TODO
-            mGame.tick(mTimestep,
-                    Arrays.<String> asList(null, null, "sword", null, null),
-                    Arrays.<String> asList(null, null, "sword", null, null));
-        }
-    }
-
     private Simulation mSimulation;
 
     @Override
@@ -45,7 +20,9 @@ public class MainActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
-        mSimulation = new Simulation(Game.EXAMPLE, 0.01f);
+        Game.GameSpec spec = Game.EXAMPLE;
+        mSimulation = new Simulation(0.01f, spec,
+                new Agent.RandomAgent(spec), new Agent.RandomAgent(spec));
     }
 
     @Override
