@@ -153,7 +153,7 @@ public class Game {
             }
         }
     }
-    enum Owner {
+    public enum Owner {
         FRIENDLY,
         ENEMY;
         Owner flip() {
@@ -172,19 +172,21 @@ public class Game {
             return this.flip().forward(units);
         }
     }
-    static class Unit {
+    public static class Unit {
         enum State {
             MOVEMENT,
             COMBAT
         }
         // NOTE: updates here must be reflected in Game.copyLane
-        @NotNull UnitSpec spec;
-        @NotNull Owner owner;
-        int position;
-        int health;
-        @NotNull State state;
-        Unit(@NotNull UnitSpec spec, @NotNull Owner owner, int position, int health, @NonNull State state) {
+        @NotNull public UnitSpec spec;
+        public int id;
+        @NotNull public Owner owner;
+        public int position;
+        public int health;
+        @NotNull public State state;
+        Unit(@NotNull UnitSpec spec, int id, @NotNull Owner owner, int position, int health, @NonNull State state) {
             this.spec = spec;
+            this.id = id;
             this.owner = owner;
             this.position = position;
             this.health = health;
@@ -193,36 +195,38 @@ public class Game {
     }
     static class Player {
         // NOTE: updates here must be reflected in Game.copyFrom
-        int balance;
+        public int balance;
         Player(int balance) {
             this.balance = balance;
         }
     }
     static class Objective {
         // NOTE: updates here must be reflected in Game.copyLane
-        @NotNull ObjectiveSpec spec;
-        @Nullable Owner owner;
-        int position;
+        @NotNull public ObjectiveSpec spec;
+        @Nullable public Owner owner;
+        public int position;
         Objective(@NotNull ObjectiveSpec spec, @Nullable Owner owner, int position) {
             this.spec = spec;
             this.owner = owner;
             this.position = position;
         }
     }
-    static class Lane {
+    public static class Lane {
         // NOTE: updates here must be reflected in Game.copyLane
-        @NotNull final List<Objective> objectives;
-        @NotNull final List<Unit> units;
+        @NotNull public final List<Objective> objectives;
+        @NotNull public final List<Unit> units;
         Lane(@NotNull List<Objective> objectives, @NotNull List<Unit> units) {
             this.objectives = objectives;
             this.units = units;
         }
     }
 
-    @NotNull final GameSpec spec;
-    @NotNull final List<Lane> lanes;
+    @NotNull public final GameSpec spec;
+    @NotNull public final List<Lane> lanes;
+    public float time = 0;
     private final List<Player> mPlayers;
     private final Map<String, UnitSpec> mNameToUnitSpec;
+    private int mNextId = 0;
 
     public Game(@NotNull GameSpec spec) {
         this.spec = spec;
@@ -314,7 +318,7 @@ public class Game {
                     index = lane.units.size();
                     encumbent = getOrNull(lane.units, lane.units.size() - 1);
                 }
-                Unit unit = new Unit(spec, owner, position, spec.health, Unit.State.MOVEMENT);
+                Unit unit = new Unit(spec, mNextId++, owner, position, spec.health, Unit.State.MOVEMENT);
                 if (encumbent == null || !isOverlapping(encumbent, unit)) {
                     lane.units.add(index, unit);
                     player(owner).balance -= spec.cost;
@@ -530,19 +534,20 @@ public class Game {
             dest.units.remove(dest.units.size() - 1);
         }
         // Update existing units
-        for (int i = 0; i < src.units.size(); ++i) {
-            Unit srcUnit = src.units.get(i);
+        for (int i = 0; i < dest.units.size(); ++i) {
             Unit destUnit = dest.units.get(i);
-            srcUnit.spec = destUnit.spec;
-            srcUnit.owner = destUnit.owner;
-            srcUnit.position = destUnit.position;
-            srcUnit.health = destUnit.health;
-            srcUnit.state = destUnit.state;
+            Unit srcUnit = src.units.get(i);
+            destUnit.spec = srcUnit.spec;
+            destUnit.id = srcUnit.id;
+            destUnit.owner = srcUnit.owner;
+            destUnit.position = srcUnit.position;
+            destUnit.health = srcUnit.health;
+            destUnit.state = srcUnit.state;
         }
         // Add new units
-        for (int i = src.units.size(); i < dest.units.size(); ++i) {
-            Unit unit = dest.units.get(i);
-            dest.units.add(new Unit(unit.spec, unit.owner, unit.position, unit.health, unit.state));
+        for (int i = dest.units.size(); i < src.units.size(); ++i) {
+            Unit unit = src.units.get(i);
+            dest.units.add(new Unit(unit.spec, unit.id, unit.owner, unit.position, unit.health, unit.state));
         }
     }
 
@@ -581,6 +586,7 @@ public class Game {
                     "Cannot copyFrom a game which has a different spec");
         }
         // As the spec is the same, we don't need to sync {.spec, .mNameToUnitSpec}
+        this.time = game.time;
         this.mPlayers.get(0).balance = game.mPlayers.get(0).balance;
         this.mPlayers.get(1).balance = game.mPlayers.get(1).balance;
         check(this.lanes.size() == game.lanes.size(),
@@ -611,8 +617,8 @@ public class Game {
         doSwapLanes(Owner.ENEMY);
         doMovement(dt, Owner.FRIENDLY);
         doMovement(dt, Owner.ENEMY);
+        this.time += dt;
 
-        // Debug
         checkInvariants();
     }
 }

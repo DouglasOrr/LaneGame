@@ -23,7 +23,7 @@ public class CustomSurfaceView extends GLSurfaceView {
         setEGLContextClientVersion(2);
         renderer = new dorr.lanegame.graphics.Renderer();
         setRenderer(renderer);
-        setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+        setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
 //        setRenderer(new Examples.Basic());
 //        setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
 //        setRenderer(new Examples.Particles(256));  // 131072

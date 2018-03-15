@@ -18,4 +18,21 @@ public class Utility {
     public static void debug(String fmt, Object... args) {
         Log.d("LaneGame", String.format(fmt, args));
     }
+    public static class FastRandom {
+        private long mRngState;
+        public FastRandom() {
+            mRngState = System.nanoTime();
+        }
+        public float nextFloat() {
+            mRngState ^= (mRngState << 21);
+            mRngState ^= (mRngState >>> 35);
+            mRngState ^= (mRngState << 4);
+            return Math.abs((int) mRngState) / (float) Integer.MAX_VALUE;
+        }
+    }
+    public static float clamp(float x, float min, float max) {
+        if (x < min) return min;
+        if (max < x) return max;
+        return x;
+    }
 }

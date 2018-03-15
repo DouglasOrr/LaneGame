@@ -3,6 +3,10 @@ package dorr.lanegame.graphics;
 import android.opengl.GLES20;
 import android.util.Log;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
+
 /**
  * A few wrappers around GLES20 APIs, to make them more usable.
  */
@@ -74,6 +78,12 @@ class GlUtility {
         return checkLocation(
                 GLES20.glGetUniformLocation(program, name),
                 "getUniformLocation", name);
+    }
+
+    static FloatBuffer allocateFloatBuffer(int n) {
+        ByteBuffer bytes = ByteBuffer.allocateDirect(n * 4);
+        bytes.order(ByteOrder.nativeOrder());
+        return bytes.asFloatBuffer();
     }
 
     static class FpsLogger {
